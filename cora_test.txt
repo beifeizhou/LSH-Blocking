@@ -1,0 +1,1 @@
+unknown	"blum1994"	avrim blum, merrick furst, jeffery jackson, michael kearns, yishay mansour, and steven rudich.		weakly 8 learning dnf and characterizing statistical query learn-ing using fourier analysis.		in proceedings of the 26 th annual acm symposium on the theory of computing,			1994.				may	
