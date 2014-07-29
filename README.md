@@ -9,7 +9,7 @@ Data-linking test using minhash and LSH techniques.
 
 ## Usage
 
-	import newlsh
+	from newlsh import barelsh
 
 ## Example
 
