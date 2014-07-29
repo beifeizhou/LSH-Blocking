@@ -3,7 +3,7 @@ LinkingTest-Minhash-LSH
 
 *atgcaugc10@gmail.com*
 
-*15 Sep 2013*
+*28 Jul 2014*
 
 Data-linking test using minhash and LSH techniques.
 
