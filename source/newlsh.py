@@ -45,7 +45,8 @@ class barelsh:
 		return temp
 
 	def index(self, input_point, extra_data=None):
-		self.fp.write(str(input_point) + '\n')
+		if (self.log):
+			self.fp.write(str(input_point) + '\n')
 
 		if isinstance(input_point, np.ndarray):
 			input_point = input_point.tolist()

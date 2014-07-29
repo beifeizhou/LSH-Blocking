@@ -50,14 +50,6 @@ def load_cora(filename):
 	except:
 		print 'error: [load_cora] from "' + filename + '"'
 
-	# dim = []
-	# for line in docs:
-	# 	lungo = len(line)
-	# 	if not (lungo in dim):
-	# 		dim.append(lungo)
-	# 		print str(lungo) + ' ' + str(line)
-	# print dim
-
 	for i in range(len(docs)):
 		tmp = docs[i]
 		docs[i] = ''
@@ -80,10 +72,10 @@ class SignatureBuilder:
 		self._counter = 0 # the global counter for word indicies in _shingles
 
 		# stores the random 32 bit sequences for each hash function
-		# self._memomask = []
+		self._memomask = []
 		# initializes the instance variable _memomask
 		# which is a list of the random 32 bits associated with each hash function
-		# self._init_hash_masks(self.n)
+		self._init_hash_masks(self.n)
 
 		self.shgvec = [] # contains shingle vectors of the dataset
 		self.signatures = [] # contains signatures of the dataset
@@ -103,8 +95,8 @@ class SignatureBuilder:
 		self._shingles = {}
 		self._counter = 0
 
-		# self._memomask = []
-		# self._init_hash_masks(self.n)
+		self._memomask = []
+		self._init_hash_masks(self.n)
 
 		self.shgvec = []
 		self.signatures = []
@@ -120,21 +112,13 @@ class SignatureBuilder:
 			b = random.randint(self.rand_inf, self.rand_sup)
 			self._param[i].append(b)
 
-	# def _init_hash_masks(self, num_hash):
-	# 	"""
-	# 	This initializes the instance variable _memomask which is a list of the 
-	# 	random 32 bits associated with each hash function
-	# 	"""
-	# 	for i in range(num_hash):
-	# 		random.seed(i)
-	# 		self._memomask.append(int(random.getrandbits(32)))
+	def _init_hash_masks(self, num_hash):
+		for i in range(num_hash):
+			random.seed(i)
+			self._memomask.append(int(random.getrandbits(32)))
 
-	# def _xor_hash(self, mask, x):
-	# 	"""
-	# 	This is a simple hash function which returns the result of a bitwise XOR
-	# 	on the input x and the 32-bit random mask
-	# 	"""
-	# 	return int(x ^ mask)
+	def _xor_hash(self, mask, x):
+		return int(x ^ mask)
 
 	def _get_shingle_vec(self, doc):
 		v = {}
@@ -164,15 +148,12 @@ class SignatureBuilder:
 			print doc
 		return v
 
-	def _get_sig(self, shingle_vec, num_perms):
+	def _get_sig(self,shingle_vec,num_perms):
 		mhash = [{} for i in range(num_perms)]
 		keys = sorted(shingle_vec.keys())
 		for r in keys:
-			h = []
-			for i in range(num_perms):
-				x = (self._param[i][0] * r + self._param[i][1]) % len(self._shingles)
-				h.append(x)
-			h = np.array(h)
+			#logging.debug('r=%d', r)
+			h = np.array([self._xor_hash(mask,r) % len(self._shingles) for mask in self._memomask])
 			for i in range(num_perms):
 				if (h[i] < mhash[i]):
 					mhash[i] = h[i]
