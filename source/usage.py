@@ -24,7 +24,7 @@ def load_docs(doclist):
 			docs.append(tokens)
 			fp.close()
 		except:
-			print 'error: load docs'
+			print 'error: [load_docs]'
 	return docs
 
 def load_dataset(filename):
