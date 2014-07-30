@@ -106,19 +106,23 @@ def test_cora2(result):
 
 	for res in result:
 		alabel = res[0]
-		if alabel in ansdic:
-			ansdic[alabel].add(id_count)
-		else:
+		if not alabel in ansdic:
 			ansdic[alabel] = set()
-			ansdic[alabel].add(id_count)
+		ansdic[alabel].add(id_count)
+		if not alabel in resdic:
+			resdic[alabel] = set()
 		if (len(res[1]) > 0):
-			rlabel = res[1][0][1]
-			if (alabel == rlabel): # correctly labeled
-				precision_count += 1
-				if alabel in resdic:
-					resdic[alabel].add(id_count)
-				else:
-					resdic[alabel] = set()
+			j = 0 # mark the index of the 1st not-himself candidate
+			ofbflag = 0 # out-of-bound flag
+			while (res[1][j][0] == id_count): # skip himself
+				j += 1
+				if (j >= len(res[1])): # out of bound
+					ofbflag = 1
+					break
+			if (ofbflag == 0):
+				rlabel = res[1][j][1]
+				if (alabel == rlabel): # correctly labeled
+					precision_count += 1
 					resdic[alabel].add(id_count)
 		id_count += 1
 
@@ -151,12 +155,6 @@ class SignatureBuilder:
 		self._shingles = {} # maps from words or sequences of words to integers
 		self._counter = 0 # the global counter for word indicies in _shingles
 
-		# stores the random 32 bit sequences for each hash function
-		# self._memomask = []
-		# initializes the instance variable _memomask
-		# which is a list of the random 32 bits associated with each hash function
-		# self._init_hash_masks(self.n)
-
 		self.shgvec = [] # contains shingle vectors of the dataset
 		self.signatures = [] # contains signatures of the dataset
 		self.loadflag = 0 # if the dataset has been loaded
@@ -175,9 +173,6 @@ class SignatureBuilder:
 		self._shingles = {}
 		self._counter = 0
 
-		self._memomask = []
-		self._init_hash_masks(self.n)
-
 		self.shgvec = []
 		self.signatures = []
 		self.loadflag = 0
@@ -191,22 +186,6 @@ class SignatureBuilder:
 			self._param[i].append(a)
 			b = random.randint(self.rand_inf, self.rand_sup)
 			self._param[i].append(b)
-
-	# def _init_hash_masks(self, num_hash):
-	# 	"""
-	# 	This initializes the instance variable _memomask which is a list of the 
-	# 	random 32 bits associated with each hash function
-	# 	"""
-	# 	for i in range(num_hash):
-	# 		random.seed(i)
-	# 		self._memomask.append(int(random.getrandbits(32)))
-
-	# def _xor_hash(self, mask, x):
-	# 	"""
-	# 	This is a simple hash function which returns the result of a bitwise XOR
-	# 	on the input x and the 32-bit random mask
-	# 	"""
-	# 	return int(x ^ mask)
 
 	def _get_shingle_vec(self, doc):
 		v = {}
@@ -297,7 +276,7 @@ if __name__ =='__main__':
 
 	# fp = open('cora_sigvec.txt', 'w')
 	t1 = time.time()
-	
+
 	# lsh = LSHash(10, dim, 8) # param: hashsize(bit), input dim, num of hashtable (how to pick???)
 	lsh = barelsh(dim, lsh_bandwidth) # param, input dim, band width
 	sb = SignatureBuilder(dim, shingle_size) #param: sig dimension, shingle size (how to pick???)
