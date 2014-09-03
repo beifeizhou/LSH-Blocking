@@ -1,17 +1,8 @@
-# from lshash import LSHash
 from newlsh import barelsh
-
 import numpy as np
 import random
-
-# not used
-from collections import defaultdict
-import Levenshtein
-import sys
 import time
-import logging
 
-SHINGLE_DIVIDER = 1000
 
 def load_docs(doclist):
 	docs = []
@@ -27,6 +18,7 @@ def load_docs(doclist):
 			print 'error: [load_docs]'
 	return docs
 
+
 def load_dataset(filename):
 	docs = []
 	try:
@@ -36,6 +28,7 @@ def load_dataset(filename):
 	except:
 		print 'error: [load_dataset]'
 	return docs
+
 
 def load_cora(filename):
 	docs = []
@@ -71,12 +64,6 @@ class SignatureBuilder:
 		self._shingles = {} # maps from words or sequences of words to integers
 		self._counter = 0 # the global counter for word indicies in _shingles
 
-		# stores the random 32 bit sequences for each hash function
-		self._memomask = []
-		# initializes the instance variable _memomask
-		# which is a list of the random 32 bits associated with each hash function
-		self._init_hash_masks(self.n)
-
 		self.shgvec = [] # contains shingle vectors of the dataset
 		self.signatures = [] # contains signatures of the dataset
 		self.loadflag = 0 # if the dataset has been loaded
@@ -95,9 +82,6 @@ class SignatureBuilder:
 		self._shingles = {}
 		self._counter = 0
 
-		self._memomask = []
-		self._init_hash_masks(self.n)
-
 		self.shgvec = []
 		self.signatures = []
 		self.loadflag = 0
@@ -111,14 +95,6 @@ class SignatureBuilder:
 			self._param[i].append(a)
 			b = random.randint(self.rand_inf, self.rand_sup)
 			self._param[i].append(b)
-
-	def _init_hash_masks(self, num_hash):
-		for i in range(num_hash):
-			random.seed(i)
-			self._memomask.append(int(random.getrandbits(32)))
-
-	def _xor_hash(self, mask, x):
-		return int(x ^ mask)
 
 	def _get_shingle_vec(self, doc):
 		v = {}
@@ -148,16 +124,30 @@ class SignatureBuilder:
 			print doc
 		return v
 
-	def _get_sig(self,shingle_vec,num_perms):
+	def _get_sig(self, shingle_vec, num_perms):
 		mhash = [{} for i in range(num_perms)]
 		keys = sorted(shingle_vec.keys())
 		for r in keys:
-			#logging.debug('r=%d', r)
-			h = np.array([self._xor_hash(mask,r) % len(self._shingles) for mask in self._memomask])
+			h = []
+			for i in range(num_perms):
+				x = (self._param[i][0] * r + self._param[i][1]) % len(self._shingles)
+				h.append(x)
+			h = np.array(h)
 			for i in range(num_perms):
 				if (h[i] < mhash[i]):
 					mhash[i] = h[i]
 		return mhash
+
+	# def _get_sig(self,shingle_vec,num_perms):
+	# 	mhash = [{} for i in range(num_perms)]
+	# 	keys = sorted(shingle_vec.keys())
+	# 	for r in keys:
+	# 		#logging.debug('r=%d', r)
+	# 		h = np.array([self._xor_hash(mask,r) % len(self._shingles) for mask in self._memomask])
+	# 		for i in range(num_perms):
+	# 			if (h[i] < mhash[i]):
+	# 				mhash[i] = h[i]
+	# 	return mhash
 
 	def get_dataset_signature(self):
 		assert (self.loadflag == 1), "error: dataset has to be loaded"
@@ -188,13 +178,18 @@ class SignatureBuilder:
 
 if __name__ =='__main__':
 
-	# lsh = LSHash(10, 16, 8) # param: hashsize(bit), input dim, num of hashtable (how to pick???)
-	lsh = barelsh(16, 2) # param, input dim, band width
+	# parameters
+	dim = 32 # dimension of signature vectors to be hashed
+	threshold = 16 # the threshold in levenshtein distance
+	assert (threshold >= 0), 'error: invalid threshold value'
+	print 'threshold: ' + str(threshold)
+	lsh_bandwidth = 4 # bandwidth used in lsh
+	shingle_size = 3 # shingle size
 
-	sb = SignatureBuilder(16, 3) #param: sig dimension, max shingle (how to pick???)
-	
-	fp = open('cora_sigvec.txt', 'w+')
 	t1 = time.time()
+
+	lsh = barelsh(dim, lsh_bandwidth) # param, input dim, band width
+	sb = SignatureBuilder(dim, shingle_size) #param: sig dimension, shingle size
 	
 	print 'traning...'
 	cora, cora_answer = load_cora('cora.txt')
@@ -203,32 +198,46 @@ if __name__ =='__main__':
 	id_count = 0
 	for sig in sb.signatures:
 		# fp.write(str(id_count) + ': ' + str(sig) + '\n')
-		lsh.index(sig, str(cora_answer[id_count])) # insert: [param] point, extra_data(optional)
+		lsh.index(sig, tuple([id_count, cora_answer[id_count]])) # insert: [param] point, extra_data(optional)
 		id_count += 1
 
+	t2 = time.time()
+
 	print 'testing...'
-	cora_test, cora_test_answer = load_cora('cora_test.txt')
+	cora_test, cora_test_answer = load_cora('cora.txt')
 	assert (len(cora_test) > 0), 'error: empty dataset'
 	test_id_count = 0
-	correct_count = 0
+	
+	result_set = []
+	fp = open('lsh-blocked.txt', 'w+')
+	dic = set()
+	
 	for ctestitem in cora_test:
 		# computing
 		testsig = sb.get_query_signature(ctestitem)
-		result = lsh.query(testsig, 1, 'jaccard') # query: [param] query_point, num_results, distance_func
-		# into file
-		# fp.write('---------------------------------------------------------\n')
-		# fp.write(str(testsig) + '\n')
-		# into console
-		# print '\nsig: ' + str(testsig)
-		# print 'theme: ' + cora_test_answer[test_id_count]
-		# print 'result: ' + str(result)
-		if (cora_test_answer[test_id_count] == result[0][0][1]):
-			correct_count += 1
+		result = lsh.query(testsig, None, 'levenshtein') # query: [param] query_point, num_results, distance_func
+		tmp = [cora_test_answer[test_id_count], []]
+		for r in result:
+			if (r[1] <= threshold):
+				tmp[1].append(r[0][1]) # is a tuple (id, label)
+			# tmp[1].append(r[0][1]) # is a tuple (id, label) # if you want no threshold, use this line instead of the two above
+		result_set.append(tmp)
+
+		# write blocking result
+		aaa = sorted(tmp[1], key=lambda x : x[0])
+		straaa = str(aaa)
+		if not straaa in dic:
+			dic.add(straaa)
+			for x in aaa:
+				fp.write(str(x[0]) + ' ')
+			fp.write('\n')
+		
 		test_id_count += 1
 
-	t2 = time.time()
-	print 'time: ' + str(t2-t1) + ' s'
-	print 'accuracy: ' + str ((correct_count+.0)/len(cora_test))
-
 	fp.close()
+
+	t3 = time.time()
+	print 'time1: ' + str(t2-t1) + ' s'
+	print 'time2: ' + str(t3-t2) + ' s'
+
 	lsh.destroy()
